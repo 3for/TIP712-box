@@ -1,0 +1,6 @@
+src/js/tip712-config.js
+node_modules
+build
+.env
+package-lock.json
+
