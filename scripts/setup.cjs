@@ -2,7 +2,7 @@ var fs = require('fs')
 var path = require('path')
 var TIP712 = require('../build/contracts/TIP712')
 
-const tronboxConfig = require('../tronbox').networks;
+const tronboxConfig = require('../tronbox.cjs').networks;
 
 // Auto detect current network (from TronBox CLI or user-defined env)
 const currentNetwork = process.env.TRON_NETWORK || 'nile';

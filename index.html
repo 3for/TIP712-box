@@ -32,86 +32,129 @@
       </div>
       <p></p>
       <p></p>
-      <div class="row" style="display:flex; flex-direction:column; gap:16px; max-width:500px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">signer(sender) address:</label>
-          <input id="signer_address" value="" style="flex:1; padding:6px 10px;" />
+      <style>
+        .tip712-container {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          max-width: 720px;
+        }
+
+        .form-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+        }
+
+        .form-row label {
+          min-width: 180px;
+          font-weight: 500;
+          padding-top: 6px;
+        }
+
+        .form-row input,
+        .form-row textarea {
+          flex: 1;
+          padding: 8px 10px;
+          font-family: monospace;
+          font-size: 13px;
+          line-height: 1.4;
+        }
+
+        .form-row textarea {
+          resize: vertical;
+          white-space: pre;
+          overflow-x: auto;
+          min-height: 80px;
+        }
+
+        button {
+          padding: 10px 0;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        pre {
+          margin: 0;
+          font-family: monospace;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+      </style>
+
+      <div class="tip712-container">
+
+        <div class="form-row">
+          <label>signer (sender) address:</label>
+          <input id="signer_address" />
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">TIP712 Domain (JSON format):</label>
-          <input id="domain" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>TIP712 Domain (JSON):</label>
+          <textarea id="domain"></textarea>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">TIP712 struct types (JSON format, without EIP712Domain):</label>
-          <input id="types" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>TIP712 struct types (JSON):</label>
+          <textarea id="types"></textarea>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">TIP712 struct value (JSON format):</label>
-          <input id="value" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>TIP712 struct value (JSON):</label>
+          <textarea id="value"></textarea>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">v of signature:</label>
-          <input id="v" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>v of signature:</label>
+          <input id="v" />
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">r of signature:</label>
-          <input id="r" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>r of signature:</label>
+          <textarea id="r" rows="2"></textarea>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">s of signature:</label>
-          <input id="s" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>s of signature:</label>
+          <textarea id="s" rows="2"></textarea>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px;">
-          <label style="min-width:140px;">signature:</label>
-          <input id="signature" value="" style="flex:1; padding:6px 10px;" />
+        <div class="form-row">
+          <label>signature:</label>
+          <textarea id="signature" rows="3"></textarea>
         </div>
 
-        <button id="get_tip712_hash" style="margin-top:8px; padding:10px 0;">
-          Get TIP712 Hash
-        </button>
+        <button id="get_tip712_hash">Get TIP712 Hash</button>
+        <button id="sign_with_tronweb">Sign with tronWeb</button>
+        <button id="sign_with_ledger">Sign with ledger device</button>
+        <button id="verify_sig">Verify TIP712 signature</button>
 
-        <button id="sign_with_tronweb" style="margin-top:8px; padding:10px 0;">
-          Sign with tronWeb
-        </button>
-
-        <button id="sign_with_ledger" style="margin-top:8px; padding:10px 0;">
-          Sign with ledger device
-        </button>
-
-        <button id="verify_sig" style="margin-top:8px; padding:10px 0;">
-          Verify TIP712 signature
-        </button>
-
-        <p id="loading" style="display:none; padding-top:10px;">
+        <p id="loading" style="display:none;">
           Waiting to complete the transaction
-          <img src="img/spinner.svg" style="width:20px; vertical-align:middle;" />
+          <img src="src/img/spinner.svg"
+              style="width:20px; vertical-align:middle;" />
         </p>
 
-        <p id="TIP712message" style="display:none; padding-top:10px;">
-          hash: <b id="TIP712messageHash"></b>
+        <p id="TIP712message" style="display:none;">
+          hash:
+          <pre id="TIP712messageHash"></pre>
         </p>
 
-        <p id="result" style="display:none; padding-top:10px;">
-          result: <b id="resResult"></b>
+        <p id="result" style="display:none;">
+          result:
+          <pre id="resResult"></pre>
         </p>
 
       </div>
-    </div>
 
-    <!-- 先引入 jQuery -->
+
+    <!-- first import jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
-    <!-- 再引入 Popper（Bootstrap 需要） -->
+    <!-- then import Popper (necessary for Bootstrap) -->
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
 
-    <!-- 最后引入 Bootstrap JS -->
+    <!-- then import Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js"></script>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->

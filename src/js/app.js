@@ -529,7 +529,9 @@ var App = {
   ],
   init: async function () {
     const {transport, app, address} = await initLedger(path);
-    ledgerHardwareAddress = address.address;
+    if (address !== undefined) {
+      ledgerHardwareAddress = address.address;
+    }
     console.log("ledgerHardwareAddress:", ledgerHardwareAddress);
     ledgerApp = app;
     console.log("ledgerApp:", ledgerApp);
@@ -572,26 +574,40 @@ var App = {
 
   getTIP712MessageHash: function () {
     var that = this;
-    var _value = JSON.parse($("#value").val());
-    console.log("_value:", _value);
-    var callValArray = autoTransform(_value);
-    console.log("callValArray:", callValArray);
 
-    $("#loading").css({display: 'block'});
-    $("#get_tip712_hash").attr('disabled', 'disabled');
+    return new Promise((resolve, reject) => {
+      var _value = JSON.parse($("#value").val());
+      console.log("_value:", _value);
+      var callValArray = autoTransform(_value);
+      console.log("callValArray:", callValArray);
 
-    this.triggerContract('getHash', [callValArray], function (res)  {
-      $("#loading").css({display: 'none'});
-      $("#get_tip712_hash").attr('disabled', null);
-      $("#TIP712messageHash").html(res.toString());
-      $("#TIP712message").show();
-      console.log("getTIP712MessageHash result:", res);
+      $("#loading").show();
+      $("#get_tip712_hash").attr('disabled', true);
+
+      that.triggerContract(
+        'getHash',
+        [callValArray],
+        function (res) {
+          $("#loading").hide();
+          $("#get_tip712_hash").attr('disabled', null);
+
+          const hash = res.toString();
+          $("#TIP712messageHash").html(hash);
+          $("#TIP712message").show();
+          console.log("hash:", hash);
+
+          resolve(hash);   // keypoint
+        }
+      );
     });
   },
 
   signWithTronweb: async function () {
     var that = this;
     try {
+      // always getTIP712MessageHash()
+      await that.getTIP712MessageHash();
+
       document.getElementById("signer_address").value = this.accounts[0];
       const domain = JSON.parse($("#domain").val());
       console.log("domain:", domain);
@@ -633,6 +649,9 @@ var App = {
   signWithLedgerDevice: async function () {
     var that = this;
     try {
+      // always getTIP712MessageHash()
+      await that.getTIP712MessageHash();
+      
       document.getElementById("signer_address").value = ledgerHardwareAddress;
       const domain = JSON.parse($("#domain").val());
       console.log("domain:", domain);
@@ -654,7 +673,7 @@ var App = {
       $("#sign_with_tronweb").prop('disabled', false);
 
       // show result (inspect the sig shape first)
-      console.log("signWithTronweb result:", sig);
+      console.log("signWithLedgerDevice result:", sig);
       const { r, s, v } = parseSignature(sig);
       // if sig is object, stringify it; if it's a hex string, show directly
       const display = (typeof sig === 'object') ? JSON.stringify(sig, null, 2) : String(sig);
