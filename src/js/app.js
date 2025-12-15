@@ -1,5 +1,13 @@
+import TronWeb from 'tronweb';
+import { tip712SigConfig } from "./tip712-config.js"
+import Trx from '@ledgerhq/hw-app-trx';
+import TransportWebHID from '@ledgerhq/hw-transport-webhid';
+
 var contractAddress
 let tronWeb
+const path = "44'/195'/0'/0/0";
+var ledgerHardwareAddress
+var ledgerApp
 
 try {
   contractAddress = tip712SigConfig.contractAddress
@@ -76,6 +84,8 @@ function parseSignature(sig) {
     if (sig.startsWith("0x")) {
         sig = sig.slice(2);
         prefix = "0x";
+    } else {
+      prefix = "0x";
     }
 
     // Ensure the signature has exactly 130 hex chars (65 bytes)
@@ -100,7 +110,76 @@ function parseSignature(sig) {
     return { r, s, v };
 }
 
-App = {
+async function initLedger(path) {
+  let transport, app, address;
+  try {
+    transport = await TransportWebHID.create();
+    app = new Trx(transport);
+    address = await app.getAddress(path);
+    console.log(address);
+  } catch (err) {
+    alert('initLedger error:' + err)
+  }
+  console.log("address:", address);
+  return { transport, app, address };
+}
+
+/**
+ * Build a valid EIP-712 typedData object
+ * EIP712Domain definition is fixed and injected internally
+ *
+ * @param {Object} domain  - Domain values (name, version, chainId, verifyingContract)
+ * @param {Object} types   - Custom types only (DO NOT include EIP712Domain)
+ * @param {Object} message - Message data
+ * @param {string} [primaryType] - Optional explicit primaryType
+ * @returns {Object} EIP-712 typedData
+ */
+function buildTypedData(domain, types, message, primaryType) {
+  if (!domain || !types || !message) {
+    throw new Error("domain, types and message are required");
+  }
+
+  // Fixed EIP712Domain definition (per spec)
+  const EIP712_DOMAIN_TYPE = [
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" }
+  ];
+
+  // Auto-detect primaryType if not provided
+  if (!primaryType) {
+    const typeNames = Object.keys(types);
+
+    if (typeNames.length === 0) {
+      throw new Error("types must contain at least one custom type");
+    }
+
+    // Try to find the type that best matches message keys
+    primaryType =
+      typeNames.find((type) => {
+        const fields = types[type].map((f) => f.name);
+        return Object.keys(message).every((k) => fields.includes(k));
+      }) || typeNames[typeNames.length - 1];
+  }
+
+  if (!types[primaryType]) {
+    throw new Error(`primaryType "${primaryType}" not found in types`);
+  }
+
+  return {
+    domain,
+    primaryType,
+    types: {
+      EIP712Domain: EIP712_DOMAIN_TYPE,
+      ...types
+    },
+    message
+  };
+}
+
+
+var App = {
   tronWebProvider: null,
   contracts: {},
   accounts: [],
@@ -449,6 +528,11 @@ App = {
     }
   ],
   init: async function () {
+    const {transport, app, address} = await initLedger(path);
+    ledgerHardwareAddress = address.address;
+    console.log("ledgerHardwareAddress:", ledgerHardwareAddress);
+    ledgerApp = app;
+    console.log("ledgerApp:", ledgerApp);
 
     this.accounts = [
       tronWeb.address.fromPrivateKey(tip712SigConfig.privateKey)
@@ -508,6 +592,7 @@ App = {
   signWithTronweb: async function () {
     var that = this;
     try {
+      document.getElementById("signer_address").value = this.accounts[0];
       const domain = JSON.parse($("#domain").val());
       console.log("domain:", domain);
       const types = JSON.parse($("#types").val());
@@ -545,6 +630,48 @@ App = {
     }
   },
 
+  signWithLedgerDevice: async function () {
+    var that = this;
+    try {
+      document.getElementById("signer_address").value = ledgerHardwareAddress;
+      const domain = JSON.parse($("#domain").val());
+      console.log("domain:", domain);
+      const types = JSON.parse($("#types").val());
+      console.log("types:", types);
+      const value = JSON.parse($("#value").val());
+      console.log("value:", value);
+      // show loading + disable button
+      $("#loading").css({display: 'block'});
+      $("#sign_with_tronweb").prop('disabled', true);
+
+      const typedData = buildTypedData(domain, types, value);
+
+      // await the signature
+      const sig = await ledgerApp.signTIP712Message(path, typedData);
+
+      // hide loading + enable button
+      $("#loading").css({display: 'none'});
+      $("#sign_with_tronweb").prop('disabled', false);
+
+      // show result (inspect the sig shape first)
+      console.log("signWithTronweb result:", sig);
+      const { r, s, v } = parseSignature(sig);
+      // if sig is object, stringify it; if it's a hex string, show directly
+      const display = (typeof sig === 'object') ? JSON.stringify(sig, null, 2) : String(sig);
+      $("#result").css({display: 'block'});
+      $("#resResult").html(display);
+      $("#r").val(r.toString());
+      $("#s").val(s.toString());
+      $("#v").val(v.toString());
+      $("#signature").val(sig.toString());
+
+    } catch (err) {
+      $("#loading").css({display: 'none'});
+      $("#sign_with_tronweb").prop('disabled', false);
+      console.error("Sign failed:", err);
+      alert("Signing failed: " + (err.message || err));
+    }
+  },
 
   getContract: function (address, callback) {
     tronWeb.getContract(address).then(function (res) {
@@ -601,6 +728,10 @@ App = {
     $(document).on('click', '#sign_with_tronweb', function () {
       that.signWithTronweb();
     });
+
+    $(document).on('click', '#sign_with_ledger', function () {
+      that.signWithLedgerDevice();
+    });
   },
 
   markAdopted: function (adopters, account) {
@@ -621,7 +752,7 @@ App = {
 };
 
 $(function () {
-  $(window).load(function () {
+  $(window).on("load", function () {
     App.init();
   });
 });

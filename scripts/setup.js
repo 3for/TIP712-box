@@ -32,4 +32,4 @@ const tip712SigConfig = {
   fullHost: netConf.fullHost
 }
 
-fs.writeFileSync(path.resolve(__dirname, '../src/js/tip712-config.js'),`var tip712SigConfig = ${JSON.stringify(tip712SigConfig, null, 2)}`)
+fs.writeFileSync(path.resolve(__dirname, '../src/js/tip712-config.js'),`export const tip712SigConfig = ${JSON.stringify(tip712SigConfig, null, 2)}`)
